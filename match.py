@@ -1,251 +1,243 @@
-import random
-import string
 import sys
+import string
+import random
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
-    QLabel, QScrollArea, QFrame, QSizePolicy, QStackedLayout, QCheckBox
+    QApplication, QMainWindow, QWidget, QLabel, QLineEdit, QPushButton,
+    QVBoxLayout, QFrame, QCheckBox, QScrollArea, QHBoxLayout
 )
 from PyQt6.QtCore import Qt
 
 
-def generate_password(length=12):
+def generate_strong_password(length=12):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(random.choice(chars) for _ in range(length))
 
 
-class ChatBubble(QFrame):
-    def __init__(self, sender, message, is_user=True):
+class ChatBubble(QWidget):
+    def __init__(self, message, is_user=True):
         super().__init__()
-        self.setStyleSheet(f"""
-            QFrame {{
-                background-color: {'#2196F3' if is_user else '#1565C0'};
-                border-radius: 20px;
-                padding: 10px;
-            }}
-            QLabel {{
-                color: white;
-                font-size: 14px;
-            }}
+
+        layout = QHBoxLayout()
+        layout.setAlignment(
+            Qt.AlignmentFlag.AlignLeft if is_user else Qt.AlignmentFlag.AlignRight)
+
+        # Create the bubble and set the message
+        bubble = QLabel(message)
+        bubble.setWordWrap(True)
+
+        # Set background colors for user and bot
+        # Blue for user, Green for bot
+        background_color = '#0a84ff' if is_user else '#2e8b57'
+        bubble.setStyleSheet(f"""
+            background-color: {background_color};
+            color: white;
+            padding: 12px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-family: 'Helvetica Neue', sans-serif;
         """)
-        layout = QVBoxLayout()
-        layout.setContentsMargins(10, 5, 10, 5)
-        layout.setSpacing(3)
 
-        sender_label = QLabel(f"<b>{sender}</b>")
-        message_label = QLabel(message)
-        message_label.setWordWrap(True)
+        # Adjust the layout to allow flexible width
+        # Limit width to 380px to fit the window size
+        bubble.setMaximumWidth(380)
 
-        layout.addWidget(sender_label)
-        layout.addWidget(message_label)
+        layout.addWidget(bubble)
         self.setLayout(layout)
 
-        self.setSizePolicy(QSizePolicy.Policy.Maximum,
-                           QSizePolicy.Policy.Minimum)
+
+class ChatScreen(QWidget):
+    def __init__(self, username):
+        super().__init__()
+        self.setStyleSheet("background-color: #0d0d0d;")
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self.scroll = QScrollArea()
+        self.scroll.setWidgetResizable(True)
+        self.chat_container = QWidget()
+        self.chat_layout = QVBoxLayout(self.chat_container)
+        self.chat_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.scroll.setWidget(self.chat_container)
+
+        self.message_input = QLineEdit()
+        self.message_input.setPlaceholderText("Type a message...")
+        self.message_input.setStyleSheet("""
+            background-color: #2c2c2e;
+            color: white;
+            padding: 14px;
+            border-radius: 14px;
+            font-size: 15px;
+            border: 1px solid #3a3a3c;
+        """)
+        self.message_input.returnPressed.connect(self.send_message)
+
+        layout.addWidget(
+            QLabel(f"<span style='color:white;'>Welcome, {username}!</span>"))
+        layout.addWidget(self.scroll)
+        layout.addWidget(self.message_input)
+
+    def send_message(self):
+        message = self.message_input.text().strip()  # Make sure this is the first line
+
+        if not message:
+            return
+
+        # User message (now left side)
+        user_bubble = ChatBubble(message, is_user=True)
+        self.chat_layout.addWidget(user_bubble)
+
+        # Simulate bot reply (right side)
+        reply = f"Echo: {message}"
+        bot_bubble = ChatBubble(reply, is_user=False)
+        self.chat_layout.addWidget(bot_bubble)
+
+        self.message_input.clear()
+        self.scroll.verticalScrollBar().setValue(
+            self.scroll.verticalScrollBar().maximum())
 
 
 class LoginScreen(QWidget):
     def __init__(self, on_login_success):
         super().__init__()
         self.on_login_success = on_login_success
-        self.setStyleSheet("background-color: #121212;")
-        layout = QVBoxLayout()
-        layout.setContentsMargins(50, 100, 50, 50)
+        self.setStyleSheet("background-color: #0d0d0d;")
+        self.setup_ui()
+
+    def setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        main_layout.setContentsMargins(20, 40, 20, 20)
+
+        header = QLabel("🕒 9:41     🔋100%")
+        header.setStyleSheet(
+            "color: #aaa; background-color: #1c1c1e; font-size: 12px; padding: 4px;")
+        header.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(header)
+
+        card = QFrame()
+        card.setStyleSheet("""
+            QFrame {
+                background-color: #1c1c1e;
+                border-radius: 20px;
+                padding: 30px;
+                border: 1px solid #2a2a2c;
+            }
+        """)
+        layout = QVBoxLayout(card)
         layout.setSpacing(20)
 
         title = QLabel("Create Account")
-        title.setStyleSheet("color: white; font-size: 20px;")
-        layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
+        title.setStyleSheet(
+            "color: white; font-size: 22px; font-weight: bold; font-family: 'Helvetica Neue';")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title)
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Username")
-        self.username_input.setStyleSheet("""
-            QLineEdit {
-                padding: 10px;
-                border-radius: 10px;
-                background-color: #1e1e1e;
-                color: white;
-                border: 1px solid #333;
-            }
-        """)
+        self.username_input.setStyleSheet(self.input_style())
+        layout.addWidget(self.username_input)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Password")
         self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.password_input.setStyleSheet(self.input_style())
+        layout.addWidget(self.password_input)
+
         self.show_password_checkbox = QCheckBox("Show Password")
-        self.show_password_checkbox.setStyleSheet("color: white;")
+        self.show_password_checkbox.setStyleSheet(
+            "color: #bbb; font-size: 13px; font-family: 'Helvetica Neue';")
         self.show_password_checkbox.stateChanged.connect(
             self.toggle_password_visibility)
-        self.password_input.setStyleSheet(self.username_input.styleSheet())
-        self.suggest_button = QPushButton("Suggest Password")
-        self.suggest_button.setStyleSheet("""
-            QPushButton {
-                background-color: #333;
-                color: white;
-                padding: 8px;
-                border-radius: 10px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #444;
-            }
-        """)
-        self.suggest_button.clicked.connect(self.suggest_password)
-
-        self.login_button = QPushButton("Create Account")
-        self.login_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0078d7;
-                color: white;
-                padding: 10px;
-                border-radius: 10px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #005bb5;
-            }
-        """)
-        self.login_button.clicked.connect(self.handle_login)
-
-        layout.addWidget(self.username_input)
-        layout.addWidget(self.password_input)
         layout.addWidget(self.show_password_checkbox)
-        layout.addWidget(self.login_button)
+
+        self.suggest_button = QPushButton("🔐 Suggest Strong Password")
+        self.suggest_button.setStyleSheet(self.secondary_button_style())
+        self.suggest_button.clicked.connect(self.suggest_password)
         layout.addWidget(self.suggest_button)
 
-        self.setLayout(layout)
+        self.login_button = QPushButton("✅ Create Account")
+        self.login_button.setStyleSheet(self.primary_button_style())
+        self.login_button.clicked.connect(self.handle_login)
+        layout.addWidget(self.login_button)
 
-    def handle_login(self):
-        username = self.username_input.text().strip()
-        password = self.password_input.text().strip()
+        main_layout.addWidget(card)
 
-        if username and password:
-            self.on_login_success(username)
+    def input_style(self):
+        return """
+            QLineEdit {
+                background-color: #2c2c2e;
+                color: white;
+                padding: 14px;
+                border-radius: 14px;
+                font-size: 16px;
+                border: 1px solid #3a3a3c;
+                font-family: 'Helvetica Neue';
+            }
+            QLineEdit:focus {
+                border: 1px solid #007aff;
+            }
+        """
 
-    def suggest_password(self):
-        suggested = generate_password()
-        self.password_input.setText(suggested)
+    def primary_button_style(self):
+        return """
+            QPushButton {
+                background-color: #0a84ff;
+                color: white;
+                padding: 14px;
+                border-radius: 14px;
+                font-size: 16px;
+                font-family: 'Helvetica Neue';
+            }
+            QPushButton:hover {
+                background-color: #0060df;
+            }
+        """
+
+    def secondary_button_style(self):
+        return """
+            QPushButton {
+                background-color: #2a2a2c;
+                color: #ddd;
+                padding: 12px;
+                border-radius: 12px;
+                font-size: 14px;
+                font-family: 'Helvetica Neue';
+            }
+            QPushButton:hover {
+                background-color: #3a3a3c;
+            }
+        """
 
     def toggle_password_visibility(self, state):
-        if state == Qt.CheckState.Checked.value:
+        if state == 2:  # 2 means Checked
             self.password_input.setEchoMode(QLineEdit.EchoMode.Normal)
         else:
             self.password_input.setEchoMode(QLineEdit.EchoMode.Password)
 
+    def suggest_password(self):
+        self.password_input.setText(generate_strong_password())
 
-class MessagingApp(QWidget):
-    def __init__(self, username):
-        super().__init__()
-        self.username = username
-        self.setStyleSheet("background-color: #121212;")
-        self.init_ui()
-
-    def init_ui(self):
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
-
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet("border: none;")
-
-        self.chat_widget = QWidget()
-        self.chat_layout = QVBoxLayout()
-        self.chat_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.chat_widget.setLayout(self.chat_layout)
-
-        self.scroll_area.setWidget(self.chat_widget)
-        main_layout.addWidget(self.scroll_area)
-
-        self.input_field = QLineEdit()
-        self.input_field.setPlaceholderText("Type your message...")
-        self.input_field.setStyleSheet("""
-            QLineEdit {
-                background-color: #1e1e1e;
-                color: white;
-                padding: 12px;
-                border-radius: 20px;
-                border: 1px solid #333;
-                font-size: 14px;
-            }
-        """)
-        self.input_field.returnPressed.connect(self.send_message)
-
-        self.send_button = QPushButton("Send")
-        self.send_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.send_button.setStyleSheet("""
-            QPushButton {
-                background-color: #0078d7;
-                color: white;
-                padding: 12px 20px;
-                border-radius: 20px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #005bb5;
-            }
-        """)
-        self.send_button.clicked.connect(self.send_message)
-
-        input_layout = QHBoxLayout()
-        input_layout.addWidget(self.input_field)
-        input_layout.addWidget(self.send_button)
-
-        main_layout.addLayout(input_layout)
-        self.setLayout(main_layout)
-
-    def send_message(self):
-        message = self.input_field.text().strip()
-        if not message:
-            return
-
-        self.add_chat_bubble(self.username, message, is_user=True)
-        self.input_field.clear()
-
-        bot_reply = f"Echo: {message}"
-        self.add_chat_bubble("Bot", bot_reply, is_user=False)
-
-    def add_chat_bubble(self, sender, message, is_user=True):
-        bubble = ChatBubble(sender, message, is_user)
-        container = QHBoxLayout()
-
-        # Flip: user = left, bot = right
-        if is_user:
-            container.setAlignment(Qt.AlignmentFlag.AlignLeft)
-            container.addWidget(bubble)
-            container.addStretch()
-        else:
-            container.setAlignment(Qt.AlignmentFlag.AlignRight)
-            container.addStretch()
-            container.addWidget(bubble)
-
-        wrapper = QWidget()
-        wrapper.setLayout(container)
-
-        self.chat_layout.addWidget(wrapper)
-        self.scroll_area.verticalScrollBar().setValue(
-            self.scroll_area.verticalScrollBar().maximum())
+    def handle_login(self):
+        username = self.username_input.text().strip()
+        password = self.password_input.text().strip()
+        if username and password:
+            self.on_login_success(username)
 
 
-class MainApp(QWidget):
+class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Chat App with Account Creation")
-        self.setGeometry(100, 100, 500, 600)
+        self.setWindowTitle("iPhone Style Chat App")
+        self.setFixedSize(390, 844)  # iPhone 13 aspect ratio
+        self.setCentralWidget(LoginScreen(self.open_chat))
 
-        self.stack = QStackedLayout()
-        self.setLayout(self.stack)
-
-        self.login_screen = LoginScreen(self.start_chat)
-        self.stack.addWidget(self.login_screen)
-
-    def start_chat(self, username):
-        self.chat_window = MessagingApp(username)
-        self.stack.addWidget(self.chat_window)
-        self.stack.setCurrentWidget(self.chat_window)
+    def open_chat(self, username):
+        self.setCentralWidget(ChatScreen(username))
 
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainApp()
+    window = MainWindow()
     window.show()
     sys.exit(app.exec())
